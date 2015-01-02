@@ -89,7 +89,7 @@ class GCIBot(irc.IRCClient):
 
             if "gcibot pull" in msg and isMaster:
                 # FIXME: Its ugly.
-                os.system("git pull && killall python && sh run.sh &")
+                os.system("git pull --force && killall python && sh run.sh &")
                 self.quit('Time for a break.')
 
             if "leave this channel " + self.nickname in msg and isMaster:
