@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2012 Aviral Dasgupta <aviraldg@gmail.com>
 # Copyright (C) 2013-15 Ignacio Rodríguez <ignacio@sugarlabs.org>
+# With contribution of Tymon Radzik <dwgipk@gmail.com> 
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -225,7 +226,7 @@ class GCIBot(irc.IRCClient):
                     status = A['status'] + ' (%s)' % A['remain']
                 self.msg(
                     channel, '%s || %s || %s || %s' %
-                    (org, title, status, mentor))
+                    (title, org, status, mentor))
         except Exception as e:
             self.describe(
                 channel,
