@@ -215,7 +215,9 @@ class GCIBot(irc.IRCClient):
                 msg)
             if ran and isForMe:
                 # Open the JSON file and choose random task.
-                print ran[0][0]
+                if ran[0][0] > 3:
+                    self.describe(channel, 'only support a max of 3 random tasks per request.')
+                    return
                 page_json_f = open("orgs/%s.json" % ran[0][1], "r")
                 tasks = json.loads(page_json_f.read())['data']['']
                 page_json_f.close()
@@ -226,14 +228,12 @@ class GCIBot(irc.IRCClient):
                 self.describe(channel, "Spam incoming...")
                 self.msg(channel, msg)
                 for task in random_tasks:
-                    link = unicode(
-                        "https://www.google-melange.com" +
+                    link = unicode("https://www.google-melange.com" + \
                         task['operations']['row']['link']).encode('utf-8')
                     self.msg(channel, link)
 
                 for task in random_tasks:
-                    link = unicode(
-                        "https://www.google-melange.com" +
+                    link = unicode("https://www.google-melange.com" + \
                         task['operations']['row']['link']).encode('utf-8')
 
                     self.parseLink(link, channel, user)
