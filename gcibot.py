@@ -30,6 +30,7 @@ import datetime
 import json
 import random
 import os
+import gobject
 from bs4 import BeautifulSoup
 
 META = [
@@ -75,7 +76,7 @@ class GCIBot(irc.IRCClient):
     def joined(self, channel):
         self.channels.append(channel)
 
-    def parseMsg(self, msg):
+    def parseLink(self, msg, channel, user):
         links = re.findall(
             ur'https{0,1}://(www\.google-melange\.com|google-melange\.appspot\.com)/gci/task/view/google/gci20([0-9]{2})/([0-9]+)',
             msg)
@@ -234,13 +235,15 @@ class GCIBot(irc.IRCClient):
                     link = unicode(
                         "https://www.google-melange.com" +
                         task['operations']['row']['link']).encode('utf-8')
-                    self.parseMsg(link)
+
+                    self.parseLink(link, channel, user)
 
                 return
 
             if (channel or user) in IGNORED:
                 return
-            self.parseMsg(msg)
+
+            self.parseLink(msg, channel, user)
         except Exception as e:
             self.describe(
                 channel,
