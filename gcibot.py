@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2012 Aviral Dasgupta <aviraldg@gmail.com>
 # Copyright (C) 2013-15 Ignacio Rodríguez <ignacio@sugarlabs.org>
-# With contribution of Tymon Radzik <dwgipk@gmail.com> 
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -75,6 +74,49 @@ class GCIBot(irc.IRCClient):
 
     def joined(self, channel):
         self.channels.append(channel)
+
+    def parseMsg(self, msg):
+        links = re.findall(
+            ur'https{0,1}://(www\.google-melange\.com|google-melange\.appspot\.com)/gci/task/view/google/gci20([0-9]{2})/([0-9]+)',
+            msg)
+
+        for _ in links:
+            link = MELANGE_LINK.format(YEAR=_[1], TASKID=_[2])
+            YEAR = "20" + str(_[1])
+
+            if YEAR not in YEARS or len(_[2]) != YEARS[YEAR]:
+                return
+
+            r = requests.get(link)
+            s = BeautifulSoup(r.text)
+            A = {}
+            try:
+                A['title'] = s.find('div', class_='flash-error').p.string
+                if 'is inactive' in A['title']:
+                    self.describe(channel, "cant access to that task.")
+                    return
+            except:
+                A['title'] = s.find('span', class_='title').string
+            A['status'] = s.find('span', class_='status').span.string
+            A['mentor'] = s.find('span', class_='mentor').span.string
+            A['org'] = s.find('span', class_='project').string
+            A['remain'] = s.find(
+                'span',
+                class_='remaining').span.string
+            for _ in A.keys():
+                # IRC and Unicode don't mix very well, it seems.
+                A[_] = unicode(A[_]).encode('utf-8')
+
+            title = A['title']
+            status = A['status']
+            mentor = A['mentor']
+            org = A['org']
+            if A['status'] == "Claimed" or A[
+                    'status'] == "NeedsReview":
+                status = A['status'] + ' (%s)' % A['remain']
+            self.msg(
+                channel, '[[ %s || %s || %s || %s ]]' %
+                (title, org, status, mentor))
 
     def privmsg(self, user, channel, msg):
         try:
@@ -168,65 +210,37 @@ class GCIBot(irc.IRCClient):
                 return
 
             ran = re.findall(
-                'random.(sugarlabs|mifos|apertium|brlcad|sahana|copyleftgames|openmrs|wikimedia|kde|haiku|drupal|fossasia)',
+                'random.(\d).(sugarlabs|mifos|apertium|brlcad|sahana|copyleftgames|openmrs|wikimedia|kde|haiku|drupal|fossasia)',
                 msg)
             if ran and isForMe:
                 # Open the JSON file and choose random task.
-                page_json_f = open("orgs/%s.json" % ran[0], "r")
+                print ran[0][0]
+                page_json_f = open("orgs/%s.json" % ran[0][1], "r")
                 tasks = json.loads(page_json_f.read())['data']['']
                 page_json_f.close()
-                task = random.choice(tasks)
-                link = "https://www.google-melange.com" + \
-                    task['operations']['row']['link']
-                msg = "{user}, random task in {org}: {link}".format(
+                random_tasks = random.sample(tasks, int(ran[0][0]))
+                msg = "{user}, random tasks in {org}: ".format(
                     user=user,
-                    org=ran[0],
-                    link=link)
+                    org=ran[0][1])
+                self.describe(channel, "Spam incoming...")
                 self.msg(channel, msg)
+                for task in random_tasks:
+                    link = unicode(
+                        "https://www.google-melange.com" +
+                        task['operations']['row']['link']).encode('utf-8')
+                    self.msg(channel, link)
+
+                for task in random_tasks:
+                    link = unicode(
+                        "https://www.google-melange.com" +
+                        task['operations']['row']['link']).encode('utf-8')
+                    self.parseMsg(link)
+
+                return
 
             if (channel or user) in IGNORED:
                 return
-            links = re.findall(
-                ur'https{0,1}://(www\.google-melange\.com|google-melange\.appspot\.com)/gci/task/view/google/gci20([0-9]{2})/([0-9]+)',
-                msg)
-
-            for _ in links:
-                link = MELANGE_LINK.format(YEAR=_[1], TASKID=_[2])
-                YEAR = "20" + str(_[1])
-
-                if YEAR not in YEARS or len(_[2]) != YEARS[YEAR]:
-                    return
-
-                r = requests.get(link)
-                s = BeautifulSoup(r.text)
-                A = {}
-                try:
-                    A['title'] = s.find('div', class_='flash-error').p.string
-                    if 'is inactive' in A['title']:
-                        self.describe(channel, "cant access to that task.")
-                        return
-                except:
-                    A['title'] = s.find('span', class_='title').string
-                A['status'] = s.find('span', class_='status').span.string
-                A['mentor'] = s.find('span', class_='mentor').span.string
-                A['org'] = s.find('span', class_='project').string
-                A['remain'] = s.find(
-                    'span',
-                    class_='remaining').span.string
-                for _ in A.keys():
-                    # IRC and Unicode don't mix very well, it seems.
-                    A[_] = unicode(A[_]).encode('utf-8')
-
-                title = A['title']
-                status = A['status']
-                mentor = A['mentor']
-                org = A['org']
-                if A['status'] == "Claimed" or A[
-                        'status'] == "NeedsReview":
-                    status = A['status'] + ' (%s)' % A['remain']
-                self.msg(
-                    channel, '%s || %s || %s || %s' %
-                    (title, org, status, mentor))
+            self.parseMsg(msg)
         except Exception as e:
             self.describe(
                 channel,
